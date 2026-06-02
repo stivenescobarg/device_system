@@ -190,7 +190,7 @@ no validan datos de entrada, y las dependencias se reutilizan entre endpoints.
 
 FastAPI genera automáticamente la documentación interactiva con todos los endpoints.
 
-![Swagger UI](images/parte_2/API_swagger_endpoints.png)
+![Swagger UI](images/Parte_2/API_swagger_endpoints.png)
 
 ---
 
@@ -210,21 +210,21 @@ FastAPI genera automáticamente la documentación interactiva con todos los endp
 ## Pruebas GET /users y GET /users/{user_id}
 
 ### GET /users — Listar todos los usuarios
-![GET usuarios Thunder](images/parte_2/01_users_thunder.png)
+![GET usuarios Thunder](images/Parte_2/01_users_thunder.png)
 
 ---
 
 ## Pruebas POST /users — Crear usuario
 
 ### POST exitoso (201 Created)
-![POST usuario Thunder](images/parte_2/02_post_thunder.png)
+![POST usuario Thunder](images/Parte_2/02_post_thunder.png)
 
 ### Error: Campo faltante (422 Unprocessable Entity)
-![POST campo faltante](images/parte_2/04_POST_thunder_campo_faltante.png)
+![POST campo faltante](images/Parte_2/04_POST_thunder_campo_faltante.png)
 
 ---
 ### GET /users/{user_id} — Obtener usuario Nuevo
-![GET usuario específico](images/parte_2/03_GET_user.png)
+![GET usuario específico](images/Parte_2/03_GET_user.png)
 ---
 
 ## Pruebas PUT /users/{user_id} — Actualización completa
@@ -232,13 +232,13 @@ FastAPI genera automáticamente la documentación interactiva con todos los endp
 PUT reemplaza **todos** los campos del usuario. Es obligatorio enviar name, email, role e is_active.
 
 ### PUT exitoso (200 OK)
-![PUT thunder exitoso](images/parte_2/07_PUT_thunder.png)
+![PUT thunder exitoso](images/Parte_2/07_PUT_thunder.png)
 
 ### Error: Campo faltante (422 Unprocessable Entity)
-![PUT campo faltante](images/parte_2/06_PUT_thunder_campo_faltante.png)
+![PUT campo faltante](images/Parte_2/06_PUT_thunder_campo_faltante.png)
 
 ### Error: Usuario no encontrado (404 Not Found)
-![PUT sin ID](images/parte_2/12_PUT_swagger_sin_id.png)
+![PUT sin ID](images/Parte_2/12_PUT_swagger_sin_id.png)
 
 ---
 
@@ -248,25 +248,25 @@ PATCH modifica **solo los campos enviados**. Los demás campos no se tocan.
 Internamente usa `model_dump(exclude_unset=True)` para detectar qué campos llegaron.
 
 ### PATCH exitoso — Actualizar solo el nombre (200 OK)
-![PATCH nombre actualizado](images/parte_2/05_PATCH_thunder_name_actualizado.png)
+![PATCH nombre actualizado](images/Parte_2/05_PATCH_thunder_name_actualizado.png)
 
 ### Error: PATCH sin datos (400 Bad Request)
-![PATCH sin campos](images/parte_2/13_PATCH_thunder_sin_datos.png)
+![PATCH sin campos](images/Parte_2/13_PATCH_thunder_sin_datos.png)
 
 ---
 
 ## Pruebas DELETE /users/{user_id} — Eliminar usuario
 
 ### DELETE exitoso (200 OK)
-![DELETE thunder exitoso](images/parte_2/08_DELETE_thunder.png)
+![DELETE thunder exitoso](images/Parte_2/08_DELETE_thunder.png)
 
 ### Error: Usuario inexistente (404 Not Found)
-![DELETE usuario inexistente Thunder](images/parte_2/09_DELETE_thunder_id_no_encontrado.png)
+![DELETE usuario inexistente Thunder](images/Parte_2/09_DELETE_thunder_id_no_encontrado.png)
 
-![DELETE usuario inexistente Swagger](images/parte_2/11_DELETE_swagger_usuario_inexistente.png)
+![DELETE usuario inexistente Swagger](images/Parte_2/11_DELETE_swagger_usuario_inexistente.png)
 
 ### Verificación: Confirmar que el usuario fue eliminado
-![GET usuario eliminado](images/parte_2/10_GET_ID_swagger_usuario_eliminado.png)
+![GET usuario eliminado](images/Parte_2/10_GET_ID_swagger_usuario_eliminado.png)
 
 ---
 

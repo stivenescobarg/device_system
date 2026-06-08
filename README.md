@@ -340,3 +340,182 @@ sola desde el código, lo que garantiza que siempre esté actualizada.
 ## === VIDEO EXPLICATIVO ====
 
 [Youtube](https://www.youtube.com/watch?v=A1J01vLPdaA)
+
+## PARTE 3 - Persistencia de Datos con SQLAlchemy
+
+En esta tercera parte se evolucionó la API para dejar de trabajar con datos en memoria
+y utilizar una base de datos real mediante SQLAlchemy y SQLite.
+
+---
+```
+## Estructura del proyecto v3.0
+device_systems/
+├── app/
+│   ├── main.py                        → Configuración de FastAPI y arranque
+│   ├── database/
+│   │   └── connection.py              → Engine, SessionLocal, Base, create_tables()
+│   ├── models/
+│   │   └── user_model.py              → Modelo SQLAlchemy (tabla users)
+│   ├── schemas/
+│   │   └── user_schema.py             → Schemas Pydantic: Create, Update, Patch, Response
+│   ├── routes/
+│   │   └── user_routes.py             → Endpoints REST con Depends(get_db)
+│   ├── services/
+│   │   └── user_service.py            → Lógica CRUD contra base de datos
+│   └── dependencies/
+│       └── database_dependency.py     → Dependencia get_db() con yield
+├── images/
+├── requirements.txt
+└── README.md
+```
+---
+
+## Base de datos generada
+
+Al iniciar el servidor, SQLAlchemy crea automáticamente el archivo `device_systems.db`
+con la tabla `users` y sus columnas.
+
+![Base de datos generada](images/Parte_3/Base_de_datos_device_system.png)
+
+---
+
+## Documentación Swagger UI
+
+![Swagger UI endpoints](images/Parte_3/GET_redoc.png)
+
+---
+---
+
+## Documentación ReDoc
+
+ReDoc es la vista alternativa de documentación que genera FastAPI automáticamente
+en `/redoc`. Muestra los mismos endpoints con un diseño diferente.
+
+### GET /users
+![GET ReDoc](images/Parte_3/GET_redoc.png)
+
+### GET /users/{id}
+![GET por ID ReDoc](images/Parte_3/GET_id_redoc.png)
+
+### POST /users
+![POST ReDoc](images/Parte_3/POST_redoc.png)
+
+### PATCH /users/{id}
+![PATCH ReDoc](images/Parte_3/PATCH_redoc.png)
+
+### PUT /users/{id}
+![PUT ReDoc](images/Parte_3/PUT_redoc.png)
+
+### DELETE /users/{id}
+![DELETE ReDoc](images/Parte_3/DELETE_redoc.png)
+
+---
+
+## Pruebas GET /users — Listar usuarios
+
+### Listar todos los usuarios
+![GET listar usuarios](images/Parte_3/GET_listar_usuario.png)
+
+### Filtrar por rol
+![GET filtrar por rol](images/Parte_3/GET_filtrar_por_rol.png)
+
+### Filtrar activos
+![GET filtrar activos](images/Parte_3/GET_filtrar_activos.png)
+
+### Filtrar inactivos
+![GET filtrar inactivos](images/Parte_3/GET_filtrar_inactivos.png)
+
+---
+
+## Pruebas GET /users/{id}
+
+### Consultar usuario por ID
+![GET por ID](images/Parte_3/GET_por_ID.png)
+
+### Usuario inexistente (404)
+![GET usuario inexistente](images/Parte_3/GET_usuario_inexistente.png)
+
+---
+
+## Pruebas POST /users — Crear usuario
+
+### POST exitoso (201 Created)
+![POST usuario válido](images/Parte_3/POST_usuario_válido.png)
+
+### Error: Email duplicado (400)
+![POST email repetido](images/Parte_3/POST_email_repetido.png)
+
+### Persistencia: usuarios siguen guardados al reiniciar el servidor
+![Usuarios persistidos](images/Parte_3/GET_usuarios_guardados_luego_servidor_nuevo.png)
+
+---
+
+## Pruebas PUT /users/{id} — Actualización completa
+
+### PUT exitoso (200 OK)
+![PUT completo](images/Parte_3/PUT_completo.png)
+
+### Error: Campos incompletos (422)
+![PUT campos incompletos](images/Parte_3/PUT_campos_incompletos.png)
+
+---
+
+## Pruebas PATCH /users/{id} — Actualización parcial
+
+### PATCH exitoso (200 OK)
+![PATCH parcial](images/Parte_3/PATCH_parcial.png)
+
+### Error: Email ya existente (400)
+![PATCH email existente](images/Parte_3/PATCH_email_existente.png)
+
+---
+
+## Pruebas DELETE /users/{id} — Eliminar usuario
+
+### DELETE exitoso (200 OK)
+![DELETE](images/Parte_3/DELETE.png)
+
+### Error: Usuario inexistente (404)
+![DELETE inexistente](images/Parte_3/DELETE_inexistente.png)
+
+### Verificación: usuario eliminado ya no existe
+![GET eliminado inexistente](images/Parte_3/GET_eliminado_inexistente.png)
+
+---
+
+## Manejo de errores
+
+| Error | Código | Causa |
+|---|---|---|
+| Usuario no encontrado | 404 | ID inexistente en la base de datos |
+| Email duplicado | 400 | El email ya está registrado |
+| PATCH sin datos | 400 | No se envió ningún campo |
+| Datos inválidos | 422 | Pydantic detectó campos incorrectos |
+| ID con string | 422 | El ID debe ser un número entero |
+
+![Error ID con string](images/Parte_3/ERROR_ID_con_string.png)
+
+---
+
+## Modelo SQLAlchemy vs Schema Pydantic
+
+| | Modelo SQLAlchemy | Schema Pydantic |
+|---|---|---|
+| Archivo | `models/user_model.py` | `schemas/user_schema.py` |
+| Propósito | Define la tabla en la BD | Valida datos de entrada/salida |
+| Representa | Columnas SQL con constraints | Campos JSON del request/response |
+| Se usa en | Servicio / ORM | Rutas / endpoints |
+
+---
+
+## Reflexión final — Evolución del proyecto
+
+La diferencia más importante entre la versión 2.0 y la 3.0 no está solo en la parte técnica, sino también en la forma de pensar el proyecto. Pasar de manejar una lista en memoria a trabajar con una base de datos real hace que sea necesario organizar mejor las responsabilidades de cada componente.
+
+En este caso, los modelos de SQLAlchemy se encargan de definir cómo se estructura la base de datos, mientras que los schemas de Pydantic establecen cómo se envían y reciben los datos a través de la API. Por otro lado, el servicio actúa como intermediario entre ambos, evitando que todo quede mezclado.
+
+Además, el uso de get_db() junto con yield permite que cada petición tenga su propia conexión o sesión con la base de datos y asegura que esta se cierre correctamente al finalizar, incluso cuando ocurre algún error durante la ejecución.
+
+## === VIDEO EXPLICATIVO ===
+
+[Youtube](https://youtu.be/qSGZEgONhTs)

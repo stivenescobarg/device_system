@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 from enum import Enum
 from typing import Optional
+from datetime import datetime
 
 # Valores permitidos para el rol
 class RoleEnum(str, Enum):
@@ -36,3 +37,6 @@ class UserResponse(BaseModel):
     email: str
     role: RoleEnum
     is_active: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

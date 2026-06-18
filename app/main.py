@@ -1,11 +1,13 @@
 from fastapi import FastAPI
-from app.routes.user_routes import router
+from app.routes.user_routes import router as user_router
+from app.routes.device_routes import router as device_router
+from app.routes.loan_routes import router as loan_router
 from app.database.connection import create_tables
 
 app = FastAPI(
     title="device_systems",
-    description="API REST para gestión de usuarios del sistema device_systems",
-    version="3.0",
+    description="API REST para gestión de usuarios, dispositivos y préstamos del sistema device_systems",
+    version="4.0",
     contact={
         "name": "Stiven Escobar",
         "email": "stivenescobar240208@gmail.com"
@@ -14,17 +16,21 @@ app = FastAPI(
 
 create_tables()
 
-app.include_router(router)
+app.include_router(user_router)
+app.include_router(device_router)
+app.include_router(loan_router)
 
 
 @app.get("/", tags=["Root"])
 def root():
     return {
         "message": "Bienvenido a device_systems API",
-        "version": "3.0",
+        "version": "4.0",
         "endpoints": {
-            "users": "/users",
-            "docs":  "/docs",
-            "redoc": "/redoc"
+            "users":   "/users",
+            "devices": "/devices",
+            "loans":   "/loans",
+            "docs":    "/docs",
+            "redoc":   "/redoc"
         }
     }

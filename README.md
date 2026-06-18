@@ -519,3 +519,285 @@ Además, el uso de get_db() junto con yield permite que cada petición tenga su 
 ## === VIDEO EXPLICATIVO ===
 
 [Youtube](https://youtu.be/qSGZEgONhTs)
+
+## PARTE 4 - Migraciones con Alembic, Asociaciones de Modelos y Joins
+
+En esta cuarta parte se amplió device_systems para gestionar dispositivos y préstamos,
+incorporando migraciones de base de datos controladas con Alembic, relaciones entre
+modelos con SQLAlchemy y consultas avanzadas con joins y filtros.
+
+Rama de trabajo: `device_systems_alembic_relaciones`
+
+---
+
+## Estructura del proyecto v4.0
+```
+device_systems/
+├── app/
+│   ├── main.py
+│   ├── database/
+│   │   └── connection.py
+│   ├── models/
+│   │   ├── user_model.py          → Se agregó relationship con Loan
+│   │   ├── device_model.py        → Nuevo
+│   │   └── loan_model.py          → Nuevo
+│   ├── schemas/
+│   │   ├── user_schema.py
+│   │   ├── device_schema.py       → Nuevo
+│   │   └── loan_schema.py         → Nuevo
+│   ├── routes/
+│   │   ├── user_routes.py
+│   │   ├── device_routes.py       → Nuevo
+│   │   └── loan_routes.py         → Nuevo
+│   ├── services/
+│   │   ├── user_service.py
+│   │   ├── device_service.py      → Nuevo
+│   │   └── loan_service.py        → Nuevo
+│   └── dependencies/
+│       └── database_dependency.py
+├── alembic/
+│   └── versions/
+├── alembic.ini
+├── requirements.txt
+└── README.md
+```
+---
+
+## Instalación y configuración de Alembic
+
+### Instalación
+```bash
+pip install alembic
+```
+
+![Instalación de Alembic](images/Parte_4/Instalacion_Alembic.png)
+
+### Inicialización
+```bash
+alembic init alembic
+```
+
+Esto generó la carpeta `alembic/` con `env.py`, `script.py.mako` y la carpeta `versions/`.
+
+### Configuración
+
+En `alembic.ini` se configuró la URL de conexión:
+```ini
+sqlalchemy.url = sqlite:///./device_systems.db
+```
+
+En `alembic/env.py` se importó la metadata de los modelos para que Alembic pudiera
+detectarlos automáticamente:
+```python
+from app.database.connection import Base
+from app.models import User, Device, Loan
+
+target_metadata = Base.metadata
+```
+
+---
+
+## Generación y aplicación de migraciones
+
+### Migración automática
+```bash
+alembic revision --autogenerate -m "create devices and loans tables"
+```
+
+![Migración automática generada](images/Parte_4/migracion_automatica.png)
+
+### Aplicación de la migración
+```bash
+alembic upgrade head
+```
+
+![Migración aplicada contra device_systems.db](images/Parte_4/migracion_contra_device_systems.db.png)
+
+### Historial de migraciones
+```bash
+alembic history
+```
+
+![Historial de Alembic](images/Parte_4/alembic_history.png)
+
+### Tablas generadas
+
+Verificación de las tablas creadas en `device_systems.db` mediante SQLite Viewer:
+`users`, `devices`, `loans` y la tabla interna `alembic_version`.
+
+![Tablas creadas](images/Parte_4/tablas_creadas.png)
+
+---
+
+## Modelos y asociaciones
+
+### Modelo Device
+
+```python
+class Device(Base):
+    __tablename__ = "devices"
+    id            = Column(Integer, primary_key=True, index=True)
+    name          = Column(String, nullable=False)
+    serial_number = Column(String, unique=True, nullable=False, index=True)
+    device_type   = Column(String, nullable=False)
+    brand         = Column(String, nullable=True)
+    is_available  = Column(Boolean, default=True)
+    created_at    = Column(DateTime, default=datetime.utcnow)
+
+    loans = relationship("Loan", back_populates="device")
+```
+
+### Modelo Loan
+
+```python
+class Loan(Base):
+    __tablename__ = "loans"
+    id          = Column(Integer, primary_key=True, index=True)
+    user_id     = Column(Integer, ForeignKey("users.id"), nullable=False)
+    device_id   = Column(Integer, ForeignKey("devices.id"), nullable=False)
+    loan_date   = Column(DateTime, default=datetime.utcnow)
+    return_date = Column(DateTime, nullable=True)
+    status      = Column(String, nullable=False, default="active")
+
+    user   = relationship("User", back_populates="loans")
+    device = relationship("Device", back_populates="loans")
+```
+
+### Relaciones implementadas
+
+| Relación | Tipo | Descripción |
+|---|---|---|
+| User → Loan | One-to-Many | Un usuario puede tener muchos préstamos |
+| Device → Loan | One-to-Many | Un dispositivo puede tener muchos préstamos históricos |
+| Loan → User | Many-to-One | Cada préstamo pertenece a un usuario |
+| Loan → Device | Many-to-One | Cada préstamo pertenece a un dispositivo |
+
+La integridad referencial se garantiza con `ForeignKey("users.id")` y `ForeignKey("devices.id")`,
+impidiendo crear un préstamo con un usuario o dispositivo inexistente.
+
+---
+
+## Documentación Swagger / ReDoc
+
+![Endpoints en Swagger](images/Parte_4/DOCS_endpoints.png)
+
+### ReDoc por recurso
+
+![ReDoc Users](images/Parte_4/REDOC_users.png)
+![ReDoc Devices](images/Parte_4/REDOC_devices.png)
+![ReDoc Loans](images/Parte_4/REDOC_loans.png)
+
+---
+
+## Pruebas — Dispositivos
+
+### Crear dispositivo
+![POST dispositivo nuevo](images/Parte_4/Devices/POST_dispositivo_nuevo.png)
+![POST dispositivo nuevo 2](images/Parte_4/Devices/POST_dispotivo_nuevo_2.png)
+![POST dispositivo nuevo 3](images/Parte_4/Devices/POST_dispositivo_nuevo_3.png)
+
+### Error: número de serie duplicado (400)
+![POST número de serie duplicado](images/Parte_4/Devices/POST_numero_serie_duplicado.png)
+
+### Listar dispositivos
+![GET dispositivos](images/Parte_4/Devices/GET_dispositivos.png)
+
+### Consultar dispositivo prestado
+![GET dispositivo ID2 prestado](images/Parte_4/Devices/GET_dispositivo_ID2_prestado.png)
+
+### Error: eliminar dispositivo con préstamo activo (409)
+![DELETE dispositivo prestado](images/Parte_4/Devices/DELETE_dispositivo_prestado.png)
+
+---
+
+## Pruebas — Préstamos
+
+### Crear préstamo válido
+![POST préstamo](images/Parte_4/Loans/POST_prestamo.png)
+
+### Error: dispositivo inexistente (404)
+![POST dispositivo inexistente](images/Parte_4/Loans/POST_dispositivo_inexistente.png)
+
+### Error: dispositivo no disponible (409)
+![POST dispositivo no disponible](images/Parte_4/Loans/POST_dispositivo_no_disponible.png)
+
+### Devolver dispositivo
+![PATCH devuelta préstamo](images/Parte_4/Loans/PATCH_devuelta_prestamo.png)
+
+### Error: préstamo inexistente (404)
+![PATCH préstamo inexistente](images/Parte_4/Loans/PATCH_prestamo_inexistente.png)
+
+### Error: préstamo ya devuelto (409)
+![PATCH préstamo ya devuelto](images/Parte_4/Loans/PATCH_prestamo_ya_devuelto.png)
+
+### Consultar préstamos de un usuario
+![GET préstamo usuarios](images/Parte_4/Loans/GET_prestamo_usuarios.png)
+
+### Consultar historial de préstamos de un dispositivo
+![GET historial dispositivos prestados](images/Parte_4/Loans/GET_historial_dispositivos_prestados.png)
+
+---
+
+## Pruebas con Postman — Joins y filtros
+
+### Listar préstamos con información de usuario y dispositivo (join)
+![GET lista préstamos](images/Parte_4/Postman/GET_lista_prestamos.png)
+
+### Filtrar préstamos por estado activo
+![GET préstamo activo](images/Parte_4/Postman/GET_prestamo_active.png)
+
+### Filtrar préstamos devueltos
+![GET préstamos devueltos](images/Parte_4/Postman/GET_prestamos_returned.png)
+
+### Filtrar por tipo de dispositivo
+![GET dispositivo tipo laptop](images/Parte_4/Postman/GET_dispositivo_type=laptop.png)
+
+### Verificar que el dispositivo devuelto vuelve a estar disponible
+![GET dispositivo devuelto disponible](images/Parte_4/Postman/GET_dispositivo_devuelto_vuelve_a_estar_disponible.png)
+
+---
+
+## Manejo de errores
+
+| Error | Código | Causa |
+|---|---|---|
+| Usuario inexistente | 404 | El `user_id` enviado no existe en la base de datos |
+| Dispositivo inexistente | 404 | El `device_id` enviado no existe |
+| Dispositivo no disponible | 409 | El dispositivo ya tiene un préstamo activo |
+| Préstamo inexistente | 404 | El `loan_id` no existe al consultar o devolver |
+| Préstamo ya devuelto | 409 | Se intenta devolver un préstamo con estado `returned` |
+| Número de serie duplicado | 400 | El `serial_number` ya está registrado por otro dispositivo |
+| Eliminar dispositivo prestado | 409 | El dispositivo tiene un préstamo activo asociado |
+
+### Error al aplicar migraciones
+
+Aunque en este proyecto las migraciones se aplicaron sin conflictos, este tipo de error
+ocurre cuando una migración intenta ejecutar una operación inválida contra la base de
+datos real, por ejemplo referenciar una tabla o columna que no existe, o violar una
+restricción de clave foránea con datos ya existentes. Alembic detiene la ejecución y
+lanza una excepción (`OperationalError` o similar) mostrando la causa exacta en la
+terminal. La forma de resolverlo es corregir el archivo de migración en
+`alembic/versions/` y volver a ejecutar `alembic upgrade head`, o revertir con
+`alembic downgrade -1` si la migración ya se aplicó parcialmente.
+
+---
+
+## Reflexión final
+
+Esta etapa representó el salto de un CRUD simple hacia un sistema con relaciones reales
+entre tablas. Alembic resolvió un problema que antes no existía: versionar los cambios
+de la base de datos de forma controlada, en lugar de borrar y recrear el archivo `.db`
+cada vez que cambia un modelo.
+
+Las asociaciones con `relationship()` y `back_populates()` permiten navegar entre
+objetos relacionados directamente en Python (`loan.user`, `loan.device`) sin escribir
+consultas SQL manuales, mientras que `ForeignKey()` garantiza la integridad referencial
+a nivel de base de datos, impidiendo crear préstamos huérfanos.
+
+Las consultas con `join()` y `joinedload()` permitieron construir respuestas que combinan
+información de varias tablas en una sola petición, evitando que el cliente tenga que
+hacer múltiples llamadas para obtener los datos relacionados de un préstamo.
+
+## === VIDEO EXPLICATIVO ===
+
+[Youtube]()

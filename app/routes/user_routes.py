@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.schemas.user_schema import UserCreate, UserUpdate, UserPatch, UserResponse
 from app.services.user_service import UserService
 from app.dependencies.database_dependency import get_db
+from app.dependencies.auth_dependency import get_current_active_user
 
 router = APIRouter()
 user_service = UserService()
@@ -15,7 +16,7 @@ user_service = UserService()
     response_model=list[UserResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar todos los usuarios",
-    description="Obtiene la lista de usuarios. Filtra por rol, estado activo y ordena por nombre o fecha.",
+    description="Obtiene la lista de usuarios. Requiere autenticación.",
     tags=["Users"]
 )
 def get_users(
@@ -23,10 +24,11 @@ def get_users(
     role:      Optional[str]  = None,
     is_active: Optional[bool] = None,
     order_by:  Optional[str]  = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
 ):
     response.headers["X-App-Name"]    = "device_systems"
-    response.headers["X-API-Version"] = "3.0"
+    response.headers["X-API-Version"] = "5.0"
     return user_service.get_all_users(db, role, is_active, order_by)
 
 
@@ -35,16 +37,17 @@ def get_users(
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
     summary="Obtener usuario por ID",
-    description="Retorna los datos de un usuario específico según su ID.",
+    description="Retorna los datos de un usuario. Requiere autenticación.",
     tags=["Users"]
 )
 def get_user(
     user_id: int,
     response: Response,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
 ):
     response.headers["X-App-Name"]    = "device_systems"
-    response.headers["X-API-Version"] = "3.0"
+    response.headers["X-API-Version"] = "5.0"
     user = user_service.get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail=f"Usuario con ID {user_id} no encontrado")
@@ -65,7 +68,7 @@ def create_user(
     db: Session = Depends(get_db)
 ):
     response.headers["X-App-Name"]    = "device_systems"
-    response.headers["X-API-Version"] = "3.0"
+    response.headers["X-API-Version"] = "5.0"
     return user_service.create_user(db, user)
 
 
@@ -74,17 +77,18 @@ def create_user(
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
     summary="Actualizar usuario COMPLETAMENTE",
-    description="Reemplaza TODOS los datos de un usuario existente.",
+    description="Reemplaza todos los datos de un usuario existente.",
     tags=["Users"]
 )
 def update_user_complete(
     user_id: int,
     user: UserUpdate,
     response: Response,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
 ):
     response.headers["X-App-Name"]    = "device_systems"
-    response.headers["X-API-Version"] = "3.0"
+    response.headers["X-API-Version"] = "5.0"
     return user_service.update_user_complete(db, user_id, user)
 
 
@@ -93,17 +97,18 @@ def update_user_complete(
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
     summary="Actualizar usuario PARCIALMENTE",
-    description="Modifica SOLO los campos enviados de un usuario existente.",
+    description="Modifica solo los campos enviados de un usuario existente.",
     tags=["Users"]
 )
 def update_user_partial(
     user_id: int,
     user: UserPatch,
     response: Response,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
 ):
     response.headers["X-App-Name"]    = "device_systems"
-    response.headers["X-API-Version"] = "3.0"
+    response.headers["X-API-Version"] = "5.0"
     return user_service.update_user_partial(db, user_id, user)
 
 
@@ -117,8 +122,9 @@ def update_user_partial(
 def delete_user(
     user_id: int,
     response: Response,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
 ):
     response.headers["X-App-Name"]    = "device_systems"
-    response.headers["X-API-Version"] = "3.0"
+    response.headers["X-API-Version"] = "5.0"
     return user_service.delete_user(db, user_id)

@@ -5,6 +5,10 @@ from sqlalchemy.orm import Session
 from app.schemas.loan_schema import LoanCreate, LoanResponse, LoanDetailResponse
 from app.services.loan_service import LoanService
 from app.dependencies.database_dependency import get_db
+from app.dependencies.auth_dependency import (
+    get_current_active_user,
+    require_admin_or_support
+)
 
 router = APIRouter()
 loan_service = LoanService()
@@ -15,15 +19,15 @@ loan_service = LoanService()
     response_model=list[LoanResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar préstamos",
-    description="Obtiene la lista de préstamos. Permite filtrar por estado, usuario o dispositivo.",
-    response_description="Lista de préstamos",
+    description="Obtiene la lista de préstamos. Requiere autenticación.",
     tags=["Loans"]
 )
 def get_loans(
     status_filter: Optional[str] = None,
     user_id:       Optional[int] = None,
     device_id:     Optional[int] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
 ):
     return loan_service.get_all_loans(db, status_filter, user_id, device_id)
 
@@ -32,16 +36,16 @@ def get_loans(
     "/loans/details",
     response_model=list[LoanDetailResponse],
     status_code=status.HTTP_200_OK,
-    summary="Listar préstamos con información relacionada",
-    description="Consulta préstamos usando join() mostrando datos del usuario y del dispositivo. Permite filtrar por estado, email de usuario o tipo de dispositivo.",
-    response_description="Lista de préstamos con detalle de usuario y dispositivo",
+    summary="Listar préstamos con detalle",
+    description="Consulta préstamos con joins. Requiere rol admin o support.",
     tags=["Loans"]
 )
 def get_loans_details(
     status_filter: Optional[str] = None,
     user_email:    Optional[str] = None,
     device_type:   Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin_or_support)
 ):
     return loan_service.get_loans_with_details(db, status_filter, user_email, device_type)
 
@@ -51,11 +55,14 @@ def get_loans_details(
     response_model=LoanResponse,
     status_code=status.HTTP_200_OK,
     summary="Obtener préstamo por ID",
-    description="Retorna los datos de un préstamo específico.",
-    response_description="Préstamo encontrado",
+    description="Retorna los datos de un préstamo. Requiere autenticación.",
     tags=["Loans"]
 )
-def get_loan(loan_id: int, db: Session = Depends(get_db)):
+def get_loan(
+    loan_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
     loan = loan_service.get_loan_by_id(db, loan_id)
     if not loan:
         raise HTTPException(status_code=404, detail=f"Préstamo con ID {loan_id} no encontrado")
@@ -67,11 +74,14 @@ def get_loan(loan_id: int, db: Session = Depends(get_db)):
     response_model=LoanResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Crear préstamo",
-    description="Registra un nuevo préstamo. Valida que el usuario y el dispositivo existan, y que el dispositivo esté disponible.",
-    response_description="Préstamo creado",
+    description="Registra un nuevo préstamo. Requiere autenticación.",
     tags=["Loans"]
 )
-def create_loan(loan: LoanCreate, db: Session = Depends(get_db)):
+def create_loan(
+    loan: LoanCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
     return loan_service.create_loan(db, loan)
 
 
@@ -80,11 +90,14 @@ def create_loan(loan: LoanCreate, db: Session = Depends(get_db)):
     response_model=LoanResponse,
     status_code=status.HTTP_200_OK,
     summary="Devolver dispositivo",
-    description="Marca un préstamo como devuelto, asigna fecha de devolución y libera el dispositivo.",
-    response_description="Préstamo devuelto",
+    description="Marca préstamo como devuelto. Requiere rol admin o support.",
     tags=["Loans"]
 )
-def return_loan(loan_id: int, db: Session = Depends(get_db)):
+def return_loan(
+    loan_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin_or_support)
+):
     return loan_service.return_loan(db, loan_id)
 
 
@@ -92,12 +105,15 @@ def return_loan(loan_id: int, db: Session = Depends(get_db)):
     "/users/{user_id}/loans",
     response_model=list[LoanDetailResponse],
     status_code=status.HTTP_200_OK,
-    summary="Consultar préstamos de un usuario",
-    description="Lista todos los préstamos asociados a un usuario específico, con información del dispositivo.",
-    response_description="Préstamos del usuario",
+    summary="Préstamos de un usuario",
+    description="Lista préstamos de un usuario. Requiere autenticación.",
     tags=["Loans"]
 )
-def get_user_loans(user_id: int, db: Session = Depends(get_db)):
+def get_user_loans(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
     return loan_service.get_loans_by_user(db, user_id)
 
 
@@ -105,10 +121,13 @@ def get_user_loans(user_id: int, db: Session = Depends(get_db)):
     "/devices/{device_id}/loans",
     response_model=list[LoanDetailResponse],
     status_code=status.HTTP_200_OK,
-    summary="Consultar historial de préstamos de un dispositivo",
-    description="Lista todos los préstamos asociados a un dispositivo específico, con información del usuario.",
-    response_description="Préstamos del dispositivo",
+    summary="Historial de préstamos de un dispositivo",
+    description="Lista préstamos de un dispositivo. Requiere autenticación.",
     tags=["Loans"]
 )
-def get_device_loans(device_id: int, db: Session = Depends(get_db)):
+def get_device_loans(
+    device_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
     return loan_service.get_loans_by_device(db, device_id)

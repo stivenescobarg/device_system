@@ -800,4 +800,262 @@ hacer múltiples llamadas para obtener los datos relacionados de un préstamo.
 
 ## === VIDEO EXPLICATIVO ===
 
-[Youtube](https://www.youtube.com/watch?v=Yq_xHLeUA8A)
+[Youtube]()
+
+## PARTE 5 - Seguridad: Autenticación, Middleware, CORS y Rate Limiting
+
+En esta quinta parte se fortaleció device_systems con una capa completa de seguridad:
+autenticación con OAuth2 y JWT, hash de contraseñas, protección de rutas por rol,
+middleware personalizado, configuración CORS y rate limiting.
+
+Rama de trabajo: `device_systems_security`
+
+---
+
+## Estructura del proyecto v5.0
+
+![Estructura del proyecto](images/Parte_5/estructura_proyecto.png)
+
+```
+device_systems/
+├── app/
+│   ├── main.py
+│   ├── auth/
+│   │   ├── auth_routes.py         → Endpoints /auth/register, /auth/login, /auth/me
+│   │   ├── auth_service.py        → Lógica de registro y login
+│   │   └── security.py            → Hash, verificación y JWT
+│   ├── database/
+│   │   └── connection.py
+│   ├── models/
+│   │   ├── user_model.py          → Se agregó hashed_password
+│   │   ├── device_model.py
+│   │   └── loan_model.py
+│   ├── schemas/
+│   │   ├── user_schema.py
+│   │   ├── device_schema.py
+│   │   ├── loan_schema.py
+│   │   └── auth_schema.py         → Nuevo: UserRegister, UserLogin, Token
+│   ├── routes/
+│   │   ├── user_routes.py         → Protegidas con autenticación
+│   │   ├── device_routes.py       → Protegidas por rol
+│   │   └── loan_routes.py         → Protegidas por rol
+│   ├── services/
+│   │   ├── user_service.py
+│   │   ├── device_service.py
+│   │   └── loan_service.py
+│   ├── dependencies/
+│   │   ├── database_dependency.py
+│   │   └── auth_dependency.py     → Nuevo: get_current_user, require_admin
+│   └── middlewares/
+│       └── request_middleware.py  → Nuevo: cabeceras y logs
+├── alembic/
+├── .env
+├── .env.example
+├── .gitignore
+├── requirements.txt
+└── README.md
+
+```
+
+---
+
+## Migración Alembic — campo hashed_password
+
+Se generó una migración para agregar el campo `hashed_password` al modelo User.
+
+![Migración aplicada](images/Parte_5/migracion_aplicada.png)
+![Migración hashed Users](images/Parte_5/migracion_hashed_Users.png)
+![password Users db](images/Parte_5/password_users.png)
+
+---
+
+## Documentación Swagger/OpenAPI con OAuth2
+
+FastAPI muestra automáticamente el candado en los endpoints protegidos
+y el botón Authorize para autenticarse desde la interfaz.
+
+![Swagger tags y OAuth2](images/Parte_5/Swagger/tags.png)
+
+### ReDoc por recurso
+
+![ReDoc Auth](images/Parte_5/redoc/Auth.png)
+![ReDoc Users](images/Parte_5/redoc/Users.png)
+![ReDoc Devices](images/Parte_5/redoc/Devices.png)
+![ReDoc Loans](images/Parte_5/redoc/Loans.png)
+
+---
+
+## Pruebas de autenticación
+
+### Registro de usuario válido (201 Created)
+![POST registro usuario válido](images/Parte_5/Postman/POST_registro_usuario_valido.png)
+
+### Registro con contraseña débil (422 Unprocessable Entity)
+![POST registro contraseña débil](images/Parte_5/Postman/POST_registro_contraseña_debil.png)
+
+### Registro con email duplicado (400 Bad Request)
+![POST registro email duplicado](images/Parte_5/Postman/POST_registro_email_duplicado.png)
+
+### Login correcto — token generado (200 OK)
+![POST login correcto](images/Parte_5/Postman/POST_login_correcto.png)
+
+### Login con contraseña incorrecta (401 Unauthorized)
+![POST login incorrecto](images/Parte_5/Postman/POST_login_incorrecto.png)
+
+### GET /auth/me con token válido (200 OK)
+![GET auth me token correcto](images/Parte_5/Postman/GET_auth_me_token_correcto.png)
+
+---
+
+## Pruebas de rutas protegidas
+
+### Acceso sin token (401 Unauthorized)
+![GET users sin token](images/Parte_5/Postman/GET_users_sin_token.png)
+
+### Acceso con token inválido (401 Unauthorized)
+![GET users token inválido](images/Parte_5/Postman/GET_users_token_invalido.png)
+
+### Acceso con rol no permitido — DELETE con rol user (403 Forbidden)
+![DELETE acceso no permitido](images/Parte_5/Postman/DELETE_acceso_no_permitido.png)
+
+### Rol admin requerido para eliminar (403 Forbidden)
+![Rol admin requerido eliminar](images/Parte_5/Postman/rol_admin_requerido_eliminar.png)
+
+### Crear dispositivo con rol admin (201 Created)
+![POST admin device](images/Parte_5/Postman/POST_admin_device.png)
+
+---
+
+## Cabeceras del middleware
+
+Cada respuesta incluye las cabeceras personalizadas generadas por
+`RequestMiddleware`:
+
+| Cabecera | Valor | Descripción |
+|---|---|---|
+| `X-App-Name` | `device_systems` | Nombre de la aplicación |
+| `X-Process-Time` | `0.0042` | Tiempo de respuesta en segundos |
+| `X-Request-ID` | `3b4290a3` | ID único por petición |
+
+![GET headers middleware](images/Parte_5/Postman/GET_headers_middleware.png)
+
+---
+
+## Rate Limiting
+
+Se configuró `slowapi` para limitar peticiones abusivas:
+
+| Endpoint | Límite |
+|---|---|
+| `POST /auth/register` | 3 por minuto |
+| `POST /auth/login` | 5 por minuto |
+
+Al superar el límite la API responde **429 Too Many Requests**:
+
+![Rate limiting](images/Parte_5/Postman/rate_limiting.png)
+
+---
+
+## Configuración CORS
+
+Se configuró `CORSMiddleware` en `main.py` para permitir peticiones
+desde clientes frontend autorizados:
+
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+```
+
+Los orígenes permitidos son los puertos típicos de desarrollo de
+React (`3000`) y Vite (`5173`).
+
+**¿Por qué no usar `"*"` en producción cuando hay credenciales?**
+Cuando `allow_credentials=True`, el navegador exige que `allow_origins`
+sea un dominio específico, no `"*"`. Si se usara `"*"` con credenciales,
+el navegador bloquearía la petición por política de seguridad CORS.
+Además, permitir cualquier origen en producción expone la API a peticiones
+desde dominios maliciosos que podrían robar tokens o datos del usuario.
+
+---
+
+## Hash de contraseñas con passlib
+
+Las contraseñas nunca se almacenan en texto plano. Se usa `bcrypt`
+a través de `passlib`:
+
+```python
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+```
+
+El hash generado tiene este aspecto:
+`$2b$12$eImiTXuWVxfM37uY4JANjQ...` — irreversible por diseño.
+
+---
+
+## Protección de rutas por rol
+
+| Ruta | Protección |
+|---|---|
+| `GET /users` | Usuario autenticado |
+| `GET /users/{id}` | Usuario autenticado |
+| `POST /devices` | Admin o support |
+| `PUT /devices/{id}` | Admin o support |
+| `DELETE /devices/{id}` | Solo admin |
+| `POST /loans` | Usuario autenticado |
+| `PATCH /loans/{id}/return` | Admin o support |
+| `GET /loans/details` | Admin o support |
+
+---
+
+## Validaciones de contraseña con Pydantic v2
+
+El schema `UserRegister` aplica validaciones con `field_validator`:
+
+```python
+@field_validator("password")
+@classmethod
+def validate_password(cls, value):
+    if " " in value:
+        raise ValueError("La contraseña no puede contener espacios")
+    if not re.search(r"[A-Z]", value):
+        raise ValueError("Debe tener al menos una mayúscula")
+    if not re.search(r"[a-z]", value):
+        raise ValueError("Debe tener al menos una minúscula")
+    if not re.search(r"\d", value):
+        raise ValueError("Debe tener al menos un número")
+    return value
+```
+
+---
+
+## Reflexión final
+
+La diferencia entre la v4.0 y esta v5.0 no es solo agregar endpoints —
+es un cambio de mentalidad. Una API sin autenticación es un sistema abierto
+donde cualquiera puede leer, modificar o eliminar datos. Con JWT y OAuth2,
+cada petición lleva una identidad verificada y cada ruta puede decidir
+si esa identidad tiene permisos para lo que intenta hacer.
+
+El hash de contraseñas con bcrypt es una práctica no negociable: si la
+base de datos es comprometida, las contraseñas reales siguen siendo
+ilegibles. El middleware centraliza trazabilidad sin tocar ningún endpoint.
+CORS protege a los usuarios de ataques desde dominios maliciosos. Y el
+rate limiting evita que un atacante fuerce contraseñas o sature el servidor.
+
+Cada una de estas capas es independiente, pero juntas forman una API
+preparada para un entorno real.
+
+## === VIDEO EXPLICATIVO ===
+
+[Youtube](https://youtu.be/RKqLnvQ3T9Y)
